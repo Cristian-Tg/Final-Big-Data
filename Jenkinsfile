@@ -118,9 +118,8 @@ pipeline {
       sh '''
         if docker image inspect lifemap/api:stable >/dev/null 2>&1; then
           for img in dask spark api; do docker tag lifemap/$img:stable lifemap/$img:latest; done
-          sed -i '/^GIT_COMMIT=/d' .env
-          echo "GIT_COMMIT=$COMMIT_ESTABLE" >> .env
-          docker compose up -d $SERVICIOS || true
+          # Jenkins exporta GIT_COMMIT y Compose lo prefiere sobre .env
+          GIT_COMMIT="$COMMIT_ESTABLE" docker compose up -d $SERVICIOS || true
         fi
       '''
     }
