@@ -4,7 +4,9 @@ Reputación, ubicación y supervivencia de negocios con el Yelp Open Dataset.
 
 **Área:** Filadelfia (filtro `state = PA`). **Familia de categorías:** Restaurants, Food.
 
-**URL pública:** PENDIENTE: registrar aquí la URL del despliegue.
+**URL pública:** https://others-immunology-construct-christopher.trycloudflare.com
+
+Es un túnel rápido de Cloudflare hacia el puerto 5000: cambia si se reinicia. Prueba: `https://others-immunology-construct-christopher.trycloudflare.com/health`.
 
 | Servicio | Papel | Puerto |
 |---|---|---|
@@ -45,6 +47,12 @@ El job `lifemap` usa este repositorio y el `Jenkinsfile`. Necesita dos credencia
 Revisa `main` con pollSCM cada 2 minutos, porque Jenkins no es alcanzable desde GitHub. Si una
 prueba falla, la versión no se promueve y sigue en línea la anterior. El parámetro `RUN_DATA`
 ejecuta descarga, ingesta, modelo y tasas en el primer build de un servidor nuevo.
+
+## Exponer la API
+
+```bash
+cloudflared tunnel --url http://localhost:5000
+```
 
 ## API
 
