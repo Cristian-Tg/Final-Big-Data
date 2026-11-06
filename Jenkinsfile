@@ -30,7 +30,14 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
-        script { env.GIT_COMMIT_HASH = sh(script: 'git rev-parse HEAD', returnStdout: true).trim() }
+        script {
+          env.GIT_COMMIT_HASH = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+          // Commit en linea antes de este build: el rollback debe seguir informandolo
+          env.COMMIT_ESTABLE = sh(returnStdout: true, script: '''
+            docker inspect lifemap-api --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+              | sed -n 's/^GIT_COMMIT=//p' || true
+          ''').trim()
+        }
         sh '''
           if git ls-files | grep -Ei '(^|/)(kaggle\\.json|\\.env)$'; then
             echo "Hay secretos versionados"; exit 1
@@ -111,6 +118,8 @@ pipeline {
       sh '''
         if docker image inspect lifemap/api:stable >/dev/null 2>&1; then
           for img in dask spark api; do docker tag lifemap/$img:stable lifemap/$img:latest; done
+          sed -i '/^GIT_COMMIT=/d' .env
+          echo "GIT_COMMIT=$COMMIT_ESTABLE" >> .env
           docker compose up -d $SERVICIOS || true
         fi
       '''
