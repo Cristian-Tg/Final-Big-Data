@@ -1,0 +1,217 @@
+# LifeMap. `docker compose up -d` levanta los servicios; los trabajos por lotes
+# (perfil jobs) se lanzan con `docker compose run --rm <trabajo>`.
+# No hay bind mounts de codigo: Jenkins habla con el demonio del host.
+name: lifemap
+
+x-env: &env
+  MONGO_URI: mongodb://${MONGO_ROOT_USER:-lifemap}:${MONGO_ROOT_PASSWORD:?Defina MONGO_ROOT_PASSWORD}@mongo:27017/lifemap?authSource=admin
+  MONGO_DB: lifemap
+  METRO_STATES: ${METRO_STATES:-PA}
+  CATEGORY_FAMILY: ${CATEGORY_FAMILY:-Restaurants,Food}
+  PYTHONPATH: /app
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: lifemap-mongo
+    restart: unless-stopped
+    command: [mongod, --bind_ip_all, --wiredTigerCacheSizeGB, "${MONGO_CACHE_GB:-0.5}"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-lifemap}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Defina MONGO_ROOT_PASSWORD}
+    volumes: [mongo_data:/data/db]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--norc", "--eval", "db.adminCommand('ping').ok"]
+      interval: 20s
+      timeout: 20s
+      retries: 6
+      start_period: 40s
+    networks: [lifemap]
+    logging: *logging
+
+  dask-scheduler:
+    build: {context: ., dockerfile: docker/ingestion/Dockerfile}
+    image: lifemap/dask:latest
+    container_name: lifemap-dask-scheduler
+    restart: unless-stopped
+    command: ["dask", "scheduler", "--host", "0.0.0.0", "--port", "8786", "--dashboard-address", ":8787"]
+    volumes: [data_vol:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8787/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks: [lifemap]
+    logging: *logging
+
+  dask-worker:
+    image: lifemap/dask:latest
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits: {memory: "${DASK_WORKER_LIMIT:-1400M}"}
+    command: ["dask", "worker", "tcp://dask-scheduler:8786", "--nworkers", "1", "--nthreads", "2",
+              "--memory-limit", "${DASK_WORKER_MEMORY:-1200MB}", "--death-timeout", "120"]
+    environment: *env
+    volumes: [data_vol:/data]
+    depends_on:
+      dask-scheduler: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "dask worker"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    networks: [lifemap]
+    logging: *logging
+
+  spark-master:
+    build: {context: ., dockerfile: docker/spark/Dockerfile}
+    image: lifemap/spark:latest
+    container_name: lifemap-spark-master
+    restart: unless-stopped
+    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.master.Master,
+              --host, spark-master, --port, "7077", --webui-port, "8080"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    volumes: [data_vol:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [lifemap]
+    logging: *logging
+
+  spark-worker:
+    image: lifemap/spark:latest
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: {memory: "${SPARK_WORKER_LIMIT:-2600M}"}
+    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker,
+              "spark://spark-master:7077", --cores, "${SPARK_WORKER_CORES:-3}",
+              --memory, "${SPARK_WORKER_MEMORY:-2g}", --webui-port, "8081"]
+    environment:
+      <<: *env
+      SPARK_NO_DAEMONIZE: "true"
+    volumes: [data_vol:/data]
+    depends_on:
+      spark-master: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    networks: [lifemap]
+    logging: *logging
+
+  api:
+    build: {context: ., dockerfile: docker/api/Dockerfile}
+    image: lifemap/api:latest
+    container_name: lifemap-api
+    restart: unless-stopped
+    environment:
+      <<: *env
+      GIT_COMMIT: ${GIT_COMMIT:-desconocido}
+    ports: ["${API_PORT:-5000}:5000"]
+    volumes: [data_vol:/data:ro]
+    depends_on:
+      mongo: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 25s
+    networks: [lifemap]
+    logging: *logging
+
+  jenkins:
+    build: {context: ., dockerfile: docker/jenkins/Dockerfile}
+    image: lifemap/jenkins:latest
+    container_name: lifemap-jenkins
+    restart: unless-stopped
+    user: root
+    ports: ["${JENKINS_PORT:-8088}:8080"]
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/login"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    networks: [lifemap]
+    logging: *logging
+
+  download:
+    image: lifemap/dask:latest
+    profiles: [jobs]
+    environment:
+      <<: *env
+      KAGGLE_USERNAME: ${KAGGLE_USERNAME:-}
+      KAGGLE_KEY: ${KAGGLE_KEY:-}
+    command: ["python", "-m", "src.ingestion.download_kaggle"]
+    volumes: [data_vol:/data]
+    networks: [lifemap]
+
+  ingestion:
+    image: lifemap/dask:latest
+    profiles: [jobs]
+    environment: *env
+    command: ["python", "-m", "src.ingestion.clean_load"]
+    volumes: [data_vol:/data]
+    depends_on:
+      mongo: {condition: service_healthy}
+      dask-scheduler: {condition: service_healthy}
+    networks: [lifemap]
+
+  sentiment:
+    image: lifemap/spark:latest
+    profiles: [jobs]
+    environment: *env
+    command: ["python3", "-m", "src.processing.sentiment"]
+    volumes: [data_vol:/data]
+    depends_on:
+      spark-master: {condition: service_healthy}
+    networks: [lifemap]
+
+  closure:
+    image: lifemap/spark:latest
+    profiles: [jobs]
+    environment: *env
+    command: ["python3", "-m", "src.processing.closure_rates"]
+    volumes: [data_vol:/data]
+    depends_on:
+      spark-master: {condition: service_healthy}
+    networks: [lifemap]
+
+  tests:
+    build: {context: ., dockerfile: docker/tests/Dockerfile}
+    image: lifemap/tests:latest
+    profiles: [jobs, ci]
+    environment:
+      <<: *env
+      API_BASE_URL: http://api:5000
+    command: ["pytest", "-m", "not integration"]
+    networks: [lifemap]
+
+networks:
+  lifemap:
+    name: lifemap_net
+
+volumes:
+  mongo_data:
+  data_vol:
+    name: lifemap_data
+  jenkins_home:
+    name: ${JENKINS_VOLUME:-lifemap_jenkins_home}

@@ -1,0 +1,41 @@
+# Plugins imprescindibles para el pipeline de este proyecto.
+# Sin version fija: jenkins-plugin-cli resuelve la compatible con el core.
+
+# --- Pipeline declarativo -------------------------------------------------
+workflow-aggregator
+pipeline-stage-view
+pipeline-utility-steps
+
+# --- Git y GitHub (checkout + webhook) ------------------------------------
+git
+github
+github-branch-source
+
+# --- Credenciales: el token de Kaggle se inyecta desde aqui ---------------
+credentials
+credentials-binding
+plain-credentials
+
+# --- Docker ---------------------------------------------------------------
+docker-workflow
+
+# --- Informes de pruebas --------------------------------------------------
+# Solo junit: el Jenkinsfile publica los resultados con el paso `junit` y el
+# resto de artefactos con `archiveArtifacts`.
+#
+# Se han quitado a proposito:
+#   htmlpublisher  no se usa; los informes se archivan como artefactos.
+#   warnings-ng    no se usa, y la version actual arrastra el aviso de
+#                  seguridad SECURITY-3937 (XSS almacenado). Instalar un plugin
+#                  con una vulnerabilidad conocida que ademas no hace falta es
+#                  superficie de ataque gratis.
+junit
+
+# --- Utilidades del workspace --------------------------------------------
+ws-cleanup
+timestamper
+ansicolor
+build-timeout
+
+# --- Configuration as Code (opcional, para reproducir la instancia) ------
+configuration-as-code
