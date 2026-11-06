@@ -41,7 +41,7 @@ pipeline {
 
     stage('Preparar entorno') {
       steps {
-        withCredentials([string(credentialsId: 'mongo-root-password', variable: 'MONGO_PWD')]) {
+        withCredentials([string(credentialsId: 'lifemap-mongo-password', variable: 'MONGO_PWD')]) {
           sh '''
             set +x
             printf 'MONGO_ROOT_USER=lifemap\\nMONGO_ROOT_PASSWORD=%s\\nGIT_COMMIT=%s\\n' \
