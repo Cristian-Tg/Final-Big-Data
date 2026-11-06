@@ -4,6 +4,7 @@ import mongomock
 import numpy as np
 import pandas as pd
 import pytest
+from pymongo.errors import OperationFailure
 
 from src.api import app as api
 from src.api import sentiment_model
@@ -93,6 +94,18 @@ def test_closure_respeta_minimo(cliente):
                                  "/businesses/within?polygon=nada"])
 def test_entradas_invalidas(cliente, url):
     assert cliente.get(url).status_code == 400
+
+
+def test_categoria_se_busca_literal():
+    with api.app.test_request_context("/?category=(.*"):
+        assert api.filtro_categoria()["categories"]["$regex"] == r"\(\.\*"
+
+
+def test_consulta_rechazada_es_400(cliente, monkeypatch):
+    def rechaza():
+        raise OperationFailure("poligono invalido")
+    monkeypatch.setattr(api, "db", rechaza)
+    assert cliente.get("/stats/closure").status_code == 400
 
 
 def test_predict_exige_texto(cliente):
