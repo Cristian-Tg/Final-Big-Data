@@ -46,6 +46,21 @@ pipeline {
       }
     }
 
+    // Solo autentica contra Kaggle: no descarga nada. Una caida de Kaggle no frena el despliegue
+    stage('Comprobar credencial de Kaggle') {
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+          withCredentials([file(credentialsId: 'kaggle-json', variable: 'KAGGLE_JSON_FILE')]) {
+            sh '''
+              set +x
+              jq -r '"user = \\"" + .username + ":" + .key + "\\""' "$KAGGLE_JSON_FILE"                 | curl -fsS -m 30 -K - -o /dev/null                   'https://www.kaggle.com/api/v1/datasets/list?search=yelp&page=1'
+              echo "Credencial de Kaggle valida"
+            '''
+          }
+        }
+      }
+    }
+
     stage('Preparar entorno') {
       steps {
         withCredentials([string(credentialsId: 'lifemap-mongo-password', variable: 'MONGO_PWD')]) {
@@ -89,8 +104,11 @@ pipeline {
         }
         sh '''
           docker compose run --rm ingestion
+          # Dask y Spark no caben juntos en memoria durante el entrenamiento
+          docker compose stop dask-worker
           docker compose run --rm sentiment
           docker compose run --rm closure
+          docker compose up -d --wait --wait-timeout 300 dask-worker
         '''
       }
     }
