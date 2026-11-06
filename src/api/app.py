@@ -153,7 +153,7 @@ def zones():
 
 @app.get("/stats/closure")
 def closure():
-    por = request.args.get("by", "category")
+    raise RuntimeError("demo de rollback")
     colecciones = {"category": "closure_by_category", "geohash": "closure_by_geohash"}
     if por not in colecciones:
         raise Invalido("by debe ser category o geohash")
