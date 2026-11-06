@@ -123,4 +123,8 @@ Con clave, las filas de un valor van a la misma partición: Filadelfia concentra
 
 ## 7. Estado del despliegue
 
-**Pendiente de cerrar antes de la entrega:** al escribir este informe el sistema corre en el portátil de desarrollo. El enunciado exige un servidor distinto, una URL pública y 48 horas de disponibilidad previa, condiciones que todavía no se cumplen.
+La API está publicada en https://others-immunology-construct-christopher.trycloudflare.com mediante un túnel de Cloudflare. Los seis endpoints y sus validaciones se probaron por esa URL, y `/health` informa cada servicio y el commit desplegado.
+
+**Incumplimientos conocidos:** el servidor es el mismo portátil de desarrollo, porque no se dispuso de otro equipo ni de una nube sin costo, y la URL no estuvo activa las 48 horas previas a la entrega. Además, un clon limpio se validó construyendo las imágenes y corriendo las pruebas unitarias, pero la reconstrucción completa no se ejecutó en otro equipo.
+
+Jenkins detecta cambios con pollSCM. En el build 9, una prueba rota a propósito detuvo el pipeline y la versión anterior siguió en línea, con su commit correcto en `/health`.
