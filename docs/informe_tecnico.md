@@ -128,3 +128,5 @@ La API está publicada en https://others-immunology-construct-christopher.tryclo
 **Incumplimientos conocidos:** el servidor es el mismo portátil de desarrollo, porque no se dispuso de otro equipo ni de una nube sin costo, y la URL no estuvo activa las 48 horas previas a la entrega. Además, un clon limpio se validó construyendo las imágenes y corriendo las pruebas unitarias, pero la reconstrucción completa no se ejecutó en otro equipo.
 
 Jenkins detecta cambios con pollSCM. En el build 9, una prueba rota a propósito detuvo el pipeline y la versión anterior siguió en línea, con su commit correcto en `/health`.
+
+El rollback también se comprobó con una versión ya levantada: en los builds 14 y 16 fallaron las pruebas contra la API y Jenkins restauró tanto el código como el commit anterior. Cada build autentica la credencial de Kaggle contra un endpoint que rechaza claves falsas, pero la descarga completa con `RUN_DATA` no se ejecutó en Jenkins. El sistema tiene 30 pruebas: 21 unitarias y 9 contra la API. El traslado a un servidor distinto queda para la Entrega 2.
