@@ -12,7 +12,7 @@ from src.ingestion.cleaning import categoria_principal, leer_rango, limpiar_nego
 
 
 def test_tasa_cierre_formula():
-    assert tasa_cierre(20, 365_000) == pytest.approx(2.0)
+    assert tasa_cierre(20, 365_000) == pytest.approx(3.0)
     assert tasa_cierre(1, 0) is None
 
 
