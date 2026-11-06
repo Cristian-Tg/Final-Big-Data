@@ -41,7 +41,7 @@ def test_near_respeta_radio_y_orden():
 
 def test_categoria_con_simbolos_no_rompe():
     r = requests.get(f"{BASE}/businesses/near", timeout=30, params={
-        "lat": LAT, "lon": LON, "category": "("})
+        "lat": LAT, "lon": LON, "category": "categoria-inexistente("})
     assert r.status_code == 200 and r.json()["count"] == 0
 
 
