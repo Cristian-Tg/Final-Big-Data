@@ -34,7 +34,7 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=5 \
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# 4 workers sincronos de Gunicorn: las consultas geoespaciales son limitadas
+# 2 workers de Gunicorn con 2 hilos: las consultas geoespaciales son limitadas
 # por MongoDB, no por CPU, asi que el paralelismo por proceso basta y evita la
 # complejidad de gevent. El timeout es amplio porque un $geoWithin sobre un
 # poligono grande puede tardar varios segundos.

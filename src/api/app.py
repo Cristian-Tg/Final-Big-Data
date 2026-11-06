@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.request
 
 from flask import Flask, jsonify, request
-from pymongo.errors import PyMongoError
+from pymongo.errors import OperationFailure, PyMongoError
 
 from src.api import sentiment_model
 from src.common import config
@@ -15,7 +16,8 @@ from src.common.mongo import get_db
 app = Flask(__name__)
 LIMITE_MAX = 500
 RADIO_MAX_M = 100_000
-CAMPOS = {"name": 1, "city": 1, "stars": 1, "is_open": 1, "categoria_principal": 1,
+CAMPOS = {"name": 1, "city": 1, "stars": 1, "is_open": 1, "categories": 1,
+          "categoria_principal": 1,
           "location": 1, "dias_negocio": 1, "evento": 1, "censurado": 1,
           "sentimiento_medio": 1}
 
@@ -27,6 +29,12 @@ class Invalido(ValueError):
 @app.errorhandler(Invalido)
 def _invalido(exc):
     return jsonify(error=str(exc)), 400
+
+
+@app.errorhandler(OperationFailure)
+def _consulta(exc):
+    # MongoDB respondio y rechazo la consulta, por ejemplo un poligono que se cruza
+    return jsonify(error="Consulta rechazada: revise los parametros"), 400
 
 
 @app.errorhandler(PyMongoError)
@@ -64,7 +72,10 @@ def limpio(doc: dict) -> dict:
 
 def filtro_categoria() -> dict:
     categoria = request.args.get("category")
-    return {"categories": {"$regex": categoria, "$options": "i"}} if categoria else {}
+    if not categoria:
+        return {}
+    # El texto del usuario se busca literal, nunca como expresion regular
+    return {"categories": {"$regex": re.escape(categoria), "$options": "i"}}
 
 
 def sondear(url: str) -> str:
