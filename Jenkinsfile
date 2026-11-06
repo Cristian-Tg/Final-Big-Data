@@ -53,7 +53,7 @@ pipeline {
           withCredentials([file(credentialsId: 'kaggle-json', variable: 'KAGGLE_JSON_FILE')]) {
             sh '''
               set +x
-              jq -r '"user = \\"" + .username + ":" + .key + "\\""' "$KAGGLE_JSON_FILE"                 | curl -fsS -m 30 -K - -o /dev/null                   'https://www.kaggle.com/api/v1/datasets/list?search=yelp&page=1'
+              jq -r '"user = \\"" + .username + ":" + .key + "\\""' "$KAGGLE_JSON_FILE"                 | curl -fsS -m 30 -K - -o /dev/null                   'https://www.kaggle.com/api/v1/competitions/list?group=entered'
               echo "Credencial de Kaggle valida"
             '''
           }
