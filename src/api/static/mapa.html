@@ -91,9 +91,10 @@ async function api(ruta, opciones) {
 }
 
 const mapa = L.map("mapa").setView([39.9526, -75.1652], 12);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  maxZoom: 19, subdomains: "abcd",
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+// Mosaicos de OpenStreetMap: no requieren clave de API
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(mapa);
 
 const leyenda = L.control({position: "bottomright"});
@@ -111,7 +112,7 @@ leyenda.addTo(mapa);
 api("/stats/closure?by=geohash&limit=500").then(d => {
   L.geoJSON({type: "FeatureCollection", features: d.results.map(z => (
     {type: "Feature", geometry: z.geometry, properties: z}))}, {
-    style: f => ({color: "#7a5c4b", weight: .6, fillColor: color(f.properties.tasa_cierre_pct), fillOpacity: .55}),
+    style: f => ({color: "#7a5c4b", weight: .6, fillColor: color(f.properties.tasa_cierre_pct), fillOpacity: .42}),
     onEachFeature: (f, capa) => capa.bindTooltip(
       `<b>Zona ${esc(f.properties.clave)}</b><br>Tasa de cierre: ${fmt(f.properties.tasa_cierre_pct, 2)} %` +
       `<br>Cierres: ${f.properties.cierres}<br>Reseñas negativas: ${fmt(f.properties.pct_negativas)} %`, {sticky: true})
