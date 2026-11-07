@@ -54,6 +54,10 @@ ejecuta descarga, ingesta, modelo y tasas en el primer build de un servidor nuev
 cloudflared tunnel --url http://localhost:5000
 ```
 
+## Mapa
+
+`/mapa` (o la raíz `/`) muestra un mapa de Filadelfia con las zonas coloreadas por tasa de cierre. Al hacer clic se ven los negocios a 800 m, abiertos y cerrados, junto con el resumen de la zona; incluye una caja para clasificar el sentimiento de un texto. Usa los mismos endpoints de la API.
+
 ## API
 
 | Método | Ruta | Uso |

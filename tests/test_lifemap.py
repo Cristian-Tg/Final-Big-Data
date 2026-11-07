@@ -8,6 +8,7 @@ from pymongo.errors import OperationFailure
 
 from src.api import app as api
 from src.api import sentiment_model
+from src.common.geo import geohash_encode, geohash_polygon
 from src.common.metrics import etiqueta_sentimiento, tasa_cierre
 from src.ingestion.cleaning import categoria_principal, leer_rango, limpiar_negocios, limpiar_resenas, vida_negocios
 
@@ -62,6 +63,14 @@ def test_leer_rango_cuenta_cada_linea_una_vez(tmp_path):
         assert sum(len(df) for df, _ in partes) == 25
 
 
+def test_poligono_geohash_es_lon_lat_y_contiene_el_punto():
+    lat, lon = 39.9526, -75.1652
+    anillo = geohash_polygon(geohash_encode(lat, lon, 5))["coordinates"][0]
+    lons, lats = [p[0] for p in anillo], [p[1] for p in anillo]
+    assert min(lons) <= lon <= max(lons) and min(lats) <= lat <= max(lats)
+    assert anillo[0] == anillo[-1]
+
+
 def test_vida_y_censura():
     corte = pd.Timestamp("2022-01-01")
     df = pd.DataFrame({"first_review": pd.to_datetime(["2020-01-01", "2021-06-01"]),
@@ -106,6 +115,12 @@ def test_consulta_rechazada_es_400(cliente, monkeypatch):
         raise OperationFailure("poligono invalido")
     monkeypatch.setattr(api, "db", rechaza)
     assert cliente.get("/stats/closure").status_code == 400
+
+
+def test_mapa_se_sirve(cliente):
+    r = cliente.get("/mapa")
+    assert r.status_code == 200 and b"LifeMap" in r.data
+    assert cliente.get("/").headers["Location"].endswith("/mapa")
 
 
 def test_predict_exige_texto(cliente):

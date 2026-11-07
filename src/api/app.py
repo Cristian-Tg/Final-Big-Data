@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import urllib.request
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, request, send_from_directory
 from pymongo.errors import OperationFailure, PyMongoError
 
 from src.api import sentiment_model
@@ -84,6 +85,19 @@ def sondear(url: str) -> str:
             return "ok" if resp.status == 200 else "error"
     except OSError:
         return "caido"
+
+
+ESTATICOS = os.path.join(os.path.dirname(__file__), "static")
+
+
+@app.get("/")
+def inicio():
+    return redirect("/mapa")
+
+
+@app.get("/mapa")
+def mapa():
+    return send_from_directory(ESTATICOS, "mapa.html")
 
 
 @app.get("/health")

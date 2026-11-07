@@ -8,7 +8,7 @@ import time
 from pyspark.sql import functions as F
 
 from src.common import config
-from src.common.geo import geohash_decode_bbox
+from src.common.geo import geohash_polygon
 from src.common.metrics import tasa_cierre
 from src.processing.common_spark import crear_spark
 
@@ -28,12 +28,6 @@ def validar(df, resultado: list, clave: str) -> None:
         F.sum("evento").alias("c"), F.sum("dias_negocio").alias("d")).collect()}
     if dict(resultado) != grupo:
         raise AssertionError(f"reduceByKey y groupBy no coinciden para {clave}")
-
-
-def poligono(geohash: str) -> dict:
-    min_lon, min_lat, max_lon, max_lat = geohash_decode_bbox(geohash)
-    return {"type": "Polygon", "coordinates": [[[min_lon, min_lat], [max_lon, min_lat],
-            [max_lon, max_lat], [min_lon, max_lat], [min_lon, min_lat]]]}
 
 
 def filas_por_particion(df) -> list[int]:
@@ -88,7 +82,7 @@ def main() -> None:
                    "tasa_cierre_pct": tasa_cierre(cierres, dias)}
             if clave == "geohash":
                 doc["pct_negativas"] = negativas.get(valor)
-                doc["geometry"] = json.dumps(poligono(valor))
+                doc["geometry"] = json.dumps(geohash_polygon(valor))
             filas.append(doc)
         documentos = spark.createDataFrame(filas)
         if clave == "geohash":

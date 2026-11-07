@@ -204,6 +204,14 @@ def geohash_center(gh: str) -> tuple[float, float]:
     return (min_lat + max_lat) / 2, (min_lon + max_lon) / 2
 
 
+def geohash_polygon(gh: str) -> dict:
+    """Celda del geohash como Polygon GeoJSON, con coordenadas [lon, lat]."""
+    min_lat, min_lon, max_lat, max_lon = geohash_decode_bbox(gh)
+    return {"type": "Polygon", "coordinates": [[
+        [min_lon, min_lat], [max_lon, min_lat], [max_lon, max_lat],
+        [min_lon, max_lat], [min_lon, min_lat]]]}
+
+
 # ---------------------------------------------------------------------------
 # Grilla regular
 # ---------------------------------------------------------------------------

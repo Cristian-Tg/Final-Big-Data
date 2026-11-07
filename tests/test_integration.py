@@ -77,6 +77,20 @@ def test_stats_closure():
         assert abs(r["tasa_cierre_pct"] - esperado) < 1e-6
 
 
+def test_zonas_con_poligonos_en_lon_lat():
+    datos = requests.get(f"{BASE}/stats/closure", timeout=30,
+                         params={"by": "geohash", "limit": 500}).json()
+    assert datos["count"] > 0
+    for r in datos["results"]:
+        for lon, lat in r["geometry"]["coordinates"][0]:
+            assert -80.6 <= lon <= -74.6 and 39.7 <= lat <= 42.3
+
+
+def test_mapa():
+    r = requests.get(f"{BASE}/mapa", timeout=30)
+    assert r.status_code == 200 and "leaflet" in r.text
+
+
 def test_predict():
     r = requests.post(f"{BASE}/predict", json={"text": "terrible food, awful and rude service"},
                       timeout=30)
