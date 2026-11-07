@@ -123,7 +123,7 @@ Con clave, las filas de un valor van a la misma partición: Filadelfia concentra
 
 ## 7. Estado del despliegue
 
-La API está publicada en https://others-immunology-construct-christopher.trycloudflare.com mediante un túnel de Cloudflare. Los seis endpoints y sus validaciones se probaron por esa URL, y `/health` informa cada servicio y el commit desplegado.
+La API está publicada en https://cfr-progressive-cadillac-pose.trycloudflare.com mediante un túnel de Cloudflare. Los seis endpoints y sus validaciones se probaron por esa URL, y `/health` informa cada servicio y el commit desplegado.
 
 **Incumplimientos conocidos:** el servidor es el mismo portátil de desarrollo, porque no se dispuso de otro equipo ni de una nube sin costo, y la URL no estuvo activa las 48 horas previas a la entrega. Además, un clon limpio se validó construyendo las imágenes y corriendo las pruebas unitarias, pero la reconstrucción completa no se ejecutó en otro equipo.
 

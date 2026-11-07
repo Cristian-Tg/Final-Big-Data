@@ -4,9 +4,9 @@ Reputación, ubicación y supervivencia de negocios con el Yelp Open Dataset.
 
 **Área:** Filadelfia (filtro `state = PA`). **Familia de categorías:** Restaurants, Food.
 
-**URL pública:** https://others-immunology-construct-christopher.trycloudflare.com
+**URL pública:** https://cfr-progressive-cadillac-pose.trycloudflare.com
 
-Es un túnel rápido de Cloudflare hacia el puerto 5000: cambia si se reinicia. Prueba: `https://others-immunology-construct-christopher.trycloudflare.com/health`.
+Es un túnel rápido de Cloudflare hacia el puerto 5000: cambia si se reinicia. Prueba: `https://cfr-progressive-cadillac-pose.trycloudflare.com/health`.
 
 | Servicio | Papel | Puerto |
 |---|---|---|
