@@ -85,9 +85,16 @@ pipeline {
       }
     }
 
+    // Con poca RAM un healthcheck puede tardar: se reintenta antes de declarar el fallo
     stage('Levantar servicios') {
       steps {
-        sh 'docker compose up -d --wait --wait-timeout 300 $SERVICIOS'
+        sh '''
+          for intento in 1 2 3; do
+            docker compose up -d --wait --wait-timeout 300 $SERVICIOS && exit 0
+            echo "Intento $intento fallido; reintentando en 30 s"; sleep 30
+          done
+          exit 1
+        '''
       }
     }
 
@@ -137,7 +144,10 @@ pipeline {
         if docker image inspect lifemap/api:stable >/dev/null 2>&1; then
           for img in dask spark api; do docker tag lifemap/$img:stable lifemap/$img:latest; done
           # Jenkins exporta GIT_COMMIT y Compose lo prefiere sobre .env
-          GIT_COMMIT="$COMMIT_ESTABLE" docker compose up -d $SERVICIOS || true
+          for intento in 1 2 3 4 5; do
+            GIT_COMMIT="$COMMIT_ESTABLE" docker compose up -d --wait --wait-timeout 300 $SERVICIOS && break
+            echo "Rollback: intento $intento fallido; reintentando en 30 s"; sleep 30
+          done
         fi
       '''
     }
