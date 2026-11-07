@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeMap Filadelfia</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root { --bg:#f6f7f9; --panel:#fff; --ink:#1d2330; --muted:#5d6675; --line:#e2e5ea;
+          --abierto:#2b6cb0; --cerrado:#d1452f; --acento:#2b6cb0; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         color:var(--ink); background:var(--bg); display:flex; height:100vh; }
+  aside { width:370px; flex:none; overflow-y:auto; background:var(--panel);
+          border-right:1px solid var(--line); padding:18px 18px 28px; }
+  #mapa { flex:1; }
+  h1 { font-size:20px; margin:0 0 2px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+       margin:22px 0 8px; }
+  .sub { color:var(--muted); margin:0; }
+  .ayuda { color:var(--muted); font-size:13px; margin:6px 0 0; }
+  .tarjetas { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .tarjeta { border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .tarjeta b { display:block; font-size:20px; font-variant-numeric:tabular-nums; }
+  .tarjeta span { color:var(--muted); font-size:12px; }
+  input, textarea, button { font:inherit; }
+  input, textarea { width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  textarea { resize:vertical; min-height:62px; }
+  button { margin-top:8px; background:var(--acento); color:#fff; border:0; border-radius:8px;
+           padding:8px 14px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  td { padding:5px 0; border-bottom:1px solid var(--line); }
+  td.n { text-align:right; color:var(--muted); }
+  .barra { height:8px; border-radius:4px; background:var(--line); margin:3px 0 7px; }
+  .barra i { display:block; height:100%; border-radius:4px; background:var(--acento); }
+  .etiqueta { font-weight:600; font-size:16px; }
+  .leyenda { background:#fff; padding:8px 10px; border-radius:8px; line-height:1.6;
+             box-shadow:0 1px 4px rgba(0,0,0,.2); font-size:12px; }
+  .leyenda i { display:inline-block; width:12px; height:12px; margin-right:6px;
+               vertical-align:-1px; border-radius:2px; }
+  .punto { border-radius:50% !important; }
+  .error { color:var(--cerrado); }
+  @media (max-width:760px) {
+    body { flex-direction:column; height:auto; }
+    aside { width:100%; border-right:0; border-bottom:1px solid var(--line); padding:16px; }
+    #mapa { height:70vh; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <h1>LifeMap · Filadelfia</h1>
+  <p class="sub">Reputación, ubicación y supervivencia de restaurantes (Yelp).</p>
+
+  <h2>Zona seleccionada</h2>
+  <p class="ayuda" id="ayuda">Haz clic en el mapa para analizar 800 m a la redonda.</p>
+  <div class="tarjetas" id="tarjetas" hidden>
+    <div class="tarjeta"><b id="t-neg">–</b><span>negocios</span></div>
+    <div class="tarjeta"><b id="t-cie">–</b><span>cerrados</span></div>
+    <div class="tarjeta"><b id="t-tasa">–</b><span>tasa de cierre anual</span></div>
+    <div class="tarjeta"><b id="t-est">–</b><span>estrellas promedio</span></div>
+  </div>
+
+  <h2>Filtrar por categoría</h2>
+  <input id="categoria" placeholder="Ej.: Pizza, Sushi Bars, Coffee & Tea">
+  <p class="ayuda">Se aplica en el próximo clic sobre el mapa.</p>
+
+  <h2>Sentimiento de una reseña</h2>
+  <textarea id="texto">The food was cold and the waiter was rude</textarea>
+  <button id="predecir">Clasificar</button>
+  <div id="prediccion"></div>
+
+  <h2>Categorías con mayor tasa de cierre</h2>
+  <table id="ranking"><tbody><tr><td class="ayuda">Cargando…</td></tr></tbody></table>
+  <p class="ayuda">Solo grupos con al menos 100 años-negocio.</p>
+</aside>
+<div id="mapa"></div>
+
+<script>
+const COLORES = ["#fff3b0", "#fdc47d", "#f58b4c", "#d9442b", "#8f1a14"];
+const CORTES = [2, 3.5, 5, 6.5];
+const color = t => COLORES[CORTES.filter(c => t >= c).length];
+const fmt = (n, d = 1) => n == null ? "–" : Number(n).toLocaleString("es-CO", {maximumFractionDigits: d});
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function api(ruta, opciones) {
+  const r = await fetch(ruta, opciones);
+  const datos = await r.json();
+  if (!r.ok) throw new Error(datos.error || r.status);
+  return datos;
+}
+
+const mapa = L.map("mapa").setView([39.9526, -75.1652], 12);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  maxZoom: 19, subdomains: "abcd",
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+}).addTo(mapa);
+
+const leyenda = L.control({position: "bottomright"});
+leyenda.onAdd = () => {
+  const d = L.DomUtil.create("div", "leyenda");
+  const rangos = ["< 2 %", "2 – 3,5 %", "3,5 – 5 %", "5 – 6,5 %", "≥ 6,5 %"];
+  d.innerHTML = "<b>Tasa de cierre por zona</b><br>" +
+    COLORES.map((c, i) => `<i style="background:${c}"></i>${rangos[i]}`).join("<br>") +
+    `<br><i class="punto" style="background:#2b6cb0"></i>abierto` +
+    `<br><i class="punto" style="background:#d1452f"></i>cerrado`;
+  return d;
+};
+leyenda.addTo(mapa);
+
+api("/stats/closure?by=geohash&limit=500").then(d => {
+  L.geoJSON({type: "FeatureCollection", features: d.results.map(z => (
+    {type: "Feature", geometry: z.geometry, properties: z}))}, {
+    style: f => ({color: "#7a5c4b", weight: .6, fillColor: color(f.properties.tasa_cierre_pct), fillOpacity: .55}),
+    onEachFeature: (f, capa) => capa.bindTooltip(
+      `<b>Zona ${esc(f.properties.clave)}</b><br>Tasa de cierre: ${fmt(f.properties.tasa_cierre_pct, 2)} %` +
+      `<br>Cierres: ${f.properties.cierres}<br>Reseñas negativas: ${fmt(f.properties.pct_negativas)} %`, {sticky: true})
+  }).addTo(mapa).bringToBack();
+});
+
+api("/stats/closure?limit=8").then(d => {
+  document.querySelector("#ranking tbody").innerHTML = d.results.map(r =>
+    `<tr><td>${esc(r.clave)}</td><td class="n">${fmt(r.tasa_cierre_pct, 1)} %</td></tr>`).join("");
+});
+
+let capaZona = L.layerGroup().addTo(mapa);
+mapa.on("click", async ev => {
+  const {lat, lng} = ev.latlng;
+  const categoria = document.getElementById("categoria").value.trim();
+  const q = new URLSearchParams({lat, lon: lng, radius_m: 800});
+  if (categoria) q.set("category", categoria);
+  capaZona.clearLayers();
+  L.circle([lat, lng], {radius: 800, color: "#1d2330", weight: 1.5, fill: false, dashArray: "4 4"}).addTo(capaZona);
+  try {
+    const [cerca, zona] = await Promise.all([
+      api("/businesses/near?" + q + "&limit=300"), api("/zones/summary?" + q)]);
+    for (const n of cerca.results) {
+      const [lon, la] = n.location.coordinates;
+      const cerrado = n.is_open === 0;
+      L.circleMarker([la, lon], {radius: 5, weight: 1, color: "#fff", fillOpacity: .9,
+        fillColor: cerrado ? "#d1452f" : "#2b6cb0"}).bindPopup(
+        `<b>${esc(n.name)}</b><br>${esc(n.categoria_principal)} · ${n.stars} ★<br>` +
+        `${cerrado ? "Cerrado" : "Abierto"} · ${fmt(n.dias_negocio / 365)} años con reseñas<br>` +
+        `Sentimiento medio: ${fmt(n.sentimiento_medio, 2)}`).addTo(capaZona);
+    }
+    document.getElementById("ayuda").textContent =
+      `${cerca.count} negocios mostrados${categoria ? " de «" + categoria + "»" : ""}.`;
+    document.getElementById("tarjetas").hidden = false;
+    document.getElementById("t-neg").textContent = fmt(zona.negocios, 0);
+    document.getElementById("t-cie").textContent = fmt(zona.cierres, 0);
+    document.getElementById("t-tasa").textContent = zona.tasa_cierre_pct == null ? "–" : fmt(zona.tasa_cierre_pct, 2) + " %";
+    document.getElementById("t-est").textContent = fmt(zona.estrellas, 2);
+  } catch (e) {
+    document.getElementById("ayuda").innerHTML = `<span class="error">${esc(e.message)}</span>`;
+  }
+});
+
+document.getElementById("predecir").addEventListener("click", async () => {
+  const caja = document.getElementById("prediccion");
+  try {
+    const r = await api("/predict", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text: document.getElementById("texto").value})});
+    caja.innerHTML = `<p class="etiqueta">${esc(r.sentimiento)} · ${fmt(r.probabilidad * 100, 0)} %</p>` +
+      Object.entries(r.probabilidades).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
+        `${esc(k)} ${fmt(v * 100, 0)} %<div class="barra"><i style="width:${v * 100}%"></i></div>`).join("");
+  } catch (e) {
+    caja.innerHTML = `<p class="error">${esc(e.message)}</p>`;
+  }
+});
+</script>
+</body>
+</html>

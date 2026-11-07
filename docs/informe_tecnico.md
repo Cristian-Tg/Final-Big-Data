@@ -104,12 +104,12 @@ El MapReduce por categoría se midió con 3 repeticiones sobre 15.427 negocios, 
 
 | Particiones | Rep. 1 (s) | Rep. 2 (s) | Rep. 3 (s) | Media (s) | Desv. (s) |
 |---:|---:|---:|---:|---:|---:|
-| 2 | 0,500 | 0,430 | 0,489 | 0,473 | 0,038 |
-| 8 | 1,359 | 1,489 | 1,408 | 1,419 | 0,066 |
-| 32 | 4,446 | 4,076 | 3,831 | 4,118 | 0,310 |
-| 200 | 24,100 | 22,761 | 22,273 | 23,045 | 0,946 |
+| 2 | 1,190 | 0,894 | 0,550 | 0,878 | 0,320 |
+| 8 | 2,324 | 2,181 | 2,105 | 2,203 | 0,111 |
+| 32 | 6,989 | 5,102 | 6,097 | 6,063 | 0,944 |
+| 200 | 37,084 | 38,592 | 34,355 | 36,677 | 2,148 |
 
-El tiempo crece con las particiones porque el volumen es pequeño y el costo de coordinar tareas domina. En un solo worker de 3 núcleos, 200 particiones no aportan paralelismo.
+El tiempo crece con las particiones porque el volumen es pequeño y el costo de coordinar tareas domina. En un solo worker de 3 núcleos, 200 particiones no aportan paralelismo. Una primera corrida, con menos servicios activos, dio medias de 0,473; 1,419; 4,118 y 23,045 s: los valores absolutos dependen de la carga del equipo, pero el orden se repite.
 
 El sesgo se midió con las reseñas en 8 particiones:
 
